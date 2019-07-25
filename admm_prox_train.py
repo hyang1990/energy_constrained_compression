@@ -9,11 +9,11 @@ import random
 import sys
 import math
 
+import misc
 from erfnet_cp import erfnet
 from misc import model_snapshot
 
 from energy_estimator import Alexnet_width_ub, EnergyEstimateNet, Mobilenet_width_ub, EnergyEstimateWidthRescale
-from utee import misc
 from torch import nn as nn
 from torch.nn.parameter import Parameter
 

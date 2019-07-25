@@ -716,3 +716,34 @@ def is_cuda(x):
         return x.is_cuda
     else:
         raise ValueError('unsupported data type')
+
+
+def fill_model_weights(model, val, param_name='weight'):
+    for name, W in model.named_parameters():
+        if name.endswith(param_name):
+            W.data.fill_(val)
+
+    return model
+
+
+def model_mask(model, param_name='weight'):
+    mask_model = copy.deepcopy(model)
+    fill_model_weights(mask_model, 1.0, param_name=param_name)
+
+    model2_param = model.named_parameters()
+    for name1, p1 in mask_model.named_parameters():
+        name2, p2 = next(model2_param)
+        assert name1 == name2
+        if name1.endswith(param_name) and p1.dim() > 1:
+            p1.data.copy_((p2.data != 0.0).float())
+
+    return mask_model
+
+
+def maskproj(model, mask_model, param_name='weight'):
+    mask_model_param = mask_model.named_parameters()
+    for name1, W in model.named_parameters():
+        name2, W_mask = next(mask_model_param)
+        assert name1 == name2
+        if name1.endswith(param_name) and W.dim() > 1:
+            W.data.mul_(W_mask.data)

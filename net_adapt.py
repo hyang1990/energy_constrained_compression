@@ -9,32 +9,20 @@ import time
 
 import numpy as np
 import torch
-from energynet.baselines.util.shrink_nets import ShrinkAlexnet, ShrinkLeNet5
-from energynet.model_based.proj_utils import fill_model_weights, model_mask, maskproj
-from energynet.model_based.sa_energy_model import build_energy_info, energy_eval2
-from energynet.model_free.energy_estimator import EnergyEstimateNet, EnergyEstimateWidthRescale, Mobilenet_width_ub, \
+from energy_estimator import EnergyEstimateNet, EnergyEstimateWidthRescale, Mobilenet_width_ub, \
     Alexnet_width_ub
-from energynet.model_free.erfnet_cp import erfnet
-from energynet.model_free.utils import get_data_loaders, joint_loss, PlotData, \
+from erfnet_cp import erfnet
+from utils import get_data_loaders, joint_loss, PlotData, \
     eval_loss_acc1_acc5, column_sparsity_common, argmax, class_balance_holdout, \
     get_net_model, column_sparsity_mbnet, eval_loss_iou, column_sparsity_resnet, joint_loss_cityscape, \
-    filter_projection_resnet, simple_random_holdout
-from energynet.model_free.vgg16_cp import vgg16, vgg11
+    filter_projection_resnet, simple_random_holdout, fill_model_weights, model_mask, maskproj
 from torchvision import transforms
-from utee import misc
-from utee.misc import model_snapshot
+import misc
 
 
-def model_based_energy_estimator(model_class, model_width, energy_predictor=None):
-    if energy_predictor is None:
-        # use model-based estimation
-        model = model_class(width=model_width)
-        energy_info = build_energy_info(model)
-        # crelax=True is faster
-        return sum(energy_eval2(model, energy_info, verbose=False, crelax=True).values())
-    else:
-        # model-free estimation
-        return energy_predictor(model_width)
+def model_based_energy_estimator(model_width, energy_predictor):
+    # model-free estimation
+    return energy_predictor(model_width)
 
 
 def choose_num_filters(cur_layer_width, energy_model, layer_idx, budget):
@@ -136,7 +124,7 @@ if __name__ == '__main__':
     parser.add_argument('--nclasses', type=int, default=None, help='number of classes for dataset')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size for training')
     parser.add_argument('--val_batch_size', type=int, default=512, help='batch size for evaluation')
-    parser.add_argument('--energymodel', default=None, help='energy predictor model')
+    parser.add_argument('--energymodel', required=True, help='energy predictor model')
     parser.add_argument('--num_workers', type=int, default=8, help='number of workers for train')
     parser.add_argument('--lr', type=float, default=1e-3, help='primal learning rate')
     parser.add_argument('--l2wd', type=float, default=1e-4, help='l2 weight decay')
@@ -251,70 +239,45 @@ if __name__ == '__main__':
     # for energy estimate
     print('================model energy summary================')
     # energy estimator
-    if args.energymodel is None:
-        if args.net == 'alexnet':
-            shrink_model_class = ShrinkAlexnet
-            column_sparsity = column_sparsity_common
-        elif args.net == 'lenet-5':
-            shrink_model_class = ShrinkLeNet5
-        else:
-            raise NotImplementedError
-        energy_predictor = None
+    if args.net == 'mobilenet-imagenet':
+        width_ub = Mobilenet_width_ub
+        filter_projection = filter_projection_mbnet
+        column_sparsity = column_sparsity_mbnet
+        l2wd_loss = lambda m: m.l2wd_loss(netl2wd) if not isinstance(m, torch.nn.DataParallel) else m.module.l2wd_loss(netl2wd)
+        netl2wd = 0.0
+    elif args.net == 'alexnet':
+        width_ub = Alexnet_width_ub
         filter_projection = filter_projection_common
+        column_sparsity = column_sparsity_common
+    elif args.net == 'erfnet-cityscapes':
+        width_ub = [3] + erfnet().get_cpwub() + [20]
+        column_sparsity = column_sparsity_resnet
+        filter_projection = filter_projection_resnet
     else:
-        shrink_model_class = None
-        if args.net == 'mobilenet-imagenet':
-            width_ub = Mobilenet_width_ub
-            filter_projection = filter_projection_mbnet
-            column_sparsity = column_sparsity_mbnet
-            l2wd_loss = lambda m: m.l2wd_loss(netl2wd) if not isinstance(m, torch.nn.DataParallel) else m.module.l2wd_loss(netl2wd)
-            netl2wd = 0.0
-        elif args.net == 'alexnet':
-            width_ub = Alexnet_width_ub
-            filter_projection = filter_projection_common
-            column_sparsity = column_sparsity_common
-        elif args.net == 'vgg16':
-            width_ub = [3] + vgg16().get_cpwub() + [1000]
-            filter_projection = filter_projection_common
-            column_sparsity = column_sparsity_common
-        elif args.net == 'vgg11':
-            width_ub = [3] + vgg11().get_cpwub() + [1000]
-            filter_projection = filter_projection_common
-            column_sparsity = column_sparsity_common
-        elif args.net == 'erfnet-cityscapes':
-            width_ub = [3] + erfnet().get_cpwub() + [20]
-            column_sparsity = column_sparsity_resnet
-            filter_projection = filter_projection_resnet
-        else:
-            raise NotImplementedError
-        if '_nn' in args.energymodel:
-            energy_estimator_net = EnergyEstimateNet(n_nodes=[len(width_ub) - 1, 64, 1],
-                                                 preprocessor=EnergyEstimateWidthRescale(scales=(width_ub)))
-        else:
-            energy_estimator_net = EnergyEstimateNet(n_nodes=[len(width_ub) - 1, 1],
-                                                 preprocessor=EnergyEstimateWidthRescale(scales=(width_ub)))
+        raise NotImplementedError
+    if '_nn' in args.energymodel:
+        energy_estimator_net = EnergyEstimateNet(n_nodes=[len(width_ub) - 1, 64, 1],
+                                             preprocessor=EnergyEstimateWidthRescale(scales=(width_ub)))
+    else:
+        energy_estimator_net = EnergyEstimateNet(n_nodes=[len(width_ub) - 1, 1],
+                                             preprocessor=EnergyEstimateWidthRescale(scales=(width_ub)))
 
-            energy_estimator_net.load_state_dict(torch.load(args.energymodel))
-        for p in energy_estimator_net.parameters():
-            p.requires_grad = False
-        if args.cuda:
-            energy_estimator_net.cuda()
+        energy_estimator_net.load_state_dict(torch.load(args.energymodel))
+    for p in energy_estimator_net.parameters():
+        p.requires_grad = False
+    if args.cuda:
+        energy_estimator_net.cuda()
 
-        data, target = next(iter(tr_loader))
-        assert data.size(1) in [1, 3]
-        args.in_channels = data.size(1)
+    data, target = next(iter(tr_loader))
+    assert data.size(1) in [1, 3]
+    args.in_channels = data.size(1)
 
-        energy_predictor = lambda wl: energy_estimator_net(torch.tensor([args.in_channels] + wl + [width_ub[-1]],
-                                                                    dtype=torch.float32,
-                                                                    device=next(energy_estimator_net.parameters()).device)).item()
+    energy_predictor = lambda wl: energy_estimator_net(torch.tensor([args.in_channels] + wl + [width_ub[-1]],
+                                                                dtype=torch.float32,
+                                                                device=next(energy_estimator_net.parameters()).device)).item()
 
-    energy_estimator = lambda m: model_based_energy_estimator(model_class=shrink_model_class,
-                                                              model_width=column_sparsity(m)[1:],
-                                                              energy_predictor=energy_predictor)
-
-    energy_estimator4width = lambda m_width: model_based_energy_estimator(model_class=shrink_model_class,
-                                                                          model_width=m_width,
-                                                                          energy_predictor=energy_predictor)
+    energy_estimator = lambda m: energy_predictor(column_sparsity(m)[1:])
+    energy_estimator4width = lambda m_width: energy_predictor(m_width)
 
     dense_model = fill_model_weights(copy.deepcopy(model), 1.0)
     budget_ub = energy_estimator(dense_model)
@@ -481,9 +444,9 @@ if __name__ == '__main__':
             print('=======================================================')
 
             if args.save_interval > 0 and (epoch + 1) % args.save_interval == 0:
-                model_snapshot(model, os.path.join(args.logdir, 'primal_model_epoch{}.pkl'.format(epoch)))
+                misc.model_snapshot(model, os.path.join(args.logdir, 'primal_model_epoch{}.pkl'.format(epoch)))
 
-            model_snapshot(model, os.path.join(args.logdir, 'primal_model_latest.pkl'))
+            misc.model_snapshot(model, os.path.join(args.logdir, 'primal_model_latest.pkl'))
 
     if args.lt_epochs > 0:
         # long-term fine-tune
@@ -514,7 +477,7 @@ if __name__ == '__main__':
                 val_loss, val_acc1,
                 val_acc5, cur_energy / budget_ub))
 
-        model_snapshot(model, os.path.join(args.logdir, 'primal_model_latest.pkl'))
+        misc.model_snapshot(model, os.path.join(args.logdir, 'primal_model_latest.pkl'))
 
     loss, acc1, acc5 = performance_eval(model, val_loader, loss_func, args.cuda, class_offset=class_offset)
     cur_energy = energy_estimator(model)
