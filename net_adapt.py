@@ -120,13 +120,13 @@ if __name__ == '__main__':
     parser.add_argument('--abs_budget', action='store_true', help='absolute budget')
     parser.add_argument('--bdecay', type=float, default=0.96, help='budget decay rate')
     parser.add_argument('--dataset', default='imagenet', help='dataset used in the experiment')
-    parser.add_argument('--datadir', default='/home/hyang/ssd2/ILSVRC_CLS', help='dataset dir in this machine')
+    parser.add_argument('--datadir', default='./ILSVRC_CLS', help='dataset dir in this machine')
     parser.add_argument('--nclasses', type=int, default=None, help='number of classes for dataset')
     parser.add_argument('--batch_size', type=int, default=128, help='batch size for training')
     parser.add_argument('--val_batch_size', type=int, default=512, help='batch size for evaluation')
     parser.add_argument('--energymodel', required=True, help='energy predictor model')
     parser.add_argument('--num_workers', type=int, default=8, help='number of workers for train')
-    parser.add_argument('--lr', type=float, default=1e-3, help='primal learning rate')
+    parser.add_argument('--lr', type=float, default=1e-5, help='primal learning rate')
     parser.add_argument('--l2wd', type=float, default=1e-4, help='l2 weight decay')
     parser.add_argument('--momentum', type=float, default=0.9, help='primal momentum')
     parser.add_argument('--pretrain', default=None, help='file to load pretrained model')
@@ -136,7 +136,7 @@ if __name__ == '__main__':
     parser.add_argument('--randinit', action='store_true', help='use random init')
     parser.add_argument('--eval', action='store_true', help='eval mode')
     parser.add_argument('--finetune', action='store_true', help='finetune mode')
-    parser.add_argument('--optim', default='sgd', help='optimizer')
+    parser.add_argument('--optim', default='adam', help='optimizer')
 
     parser.add_argument('--log_interval', type=int, default=100,
                         help='how many batches to wait before logging training status')
@@ -159,8 +159,6 @@ if __name__ == '__main__':
     # create log file
     misc.logger.init(args.logdir, 'train_log')
     print = misc.logger.info
-    # backup the src
-    os.system('zip -qj ' + os.path.join(args.logdir, 'src.zip') + ' ./*.py')
 
     print('command:\npython {}'.format(' '.join(sys.argv)))
     print("=================FLAGS==================")

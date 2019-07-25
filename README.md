@@ -150,3 +150,62 @@ optional arguments:
   --slb SLB             sparsity lower bound
   --eval                eval in the begining
 ```
+
+
+#### Energy-constrained NetAdapt (our implementation)
+```
+usage: net_adapt.py [-h] [--net NET] [--budget BUDGET] [--abs_budget]
+                    [--bdecay BDECAY] [--dataset DATASET] [--datadir DATADIR]
+                    [--nclasses NCLASSES] [--batch_size BATCH_SIZE]
+                    [--val_batch_size VAL_BATCH_SIZE] --energymodel
+                    ENERGYMODEL [--num_workers NUM_WORKERS] [--lr LR]
+                    [--l2wd L2WD] [--momentum MOMENTUM] [--pretrain PRETRAIN]
+                    [--epochs EPOCHS] [--lt_epochs LT_EPOCHS] [--seed SEED]
+                    [--randinit] [--eval] [--finetune] [--optim OPTIM]
+                    [--log_interval LOG_INTERVAL]
+                    [--test_interval TEST_INTERVAL]
+                    [--save_interval SAVE_INTERVAL] [--logdir LOGDIR]
+                    [--distill DISTILL] [--mgpu]
+
+NetAdapt Implementation
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --net NET             network arch
+  --budget BUDGET       energy budget
+  --abs_budget          absolute budget
+  --bdecay BDECAY       budget decay rate
+  --dataset DATASET     dataset used in the experiment
+  --datadir DATADIR     dataset dir in this machine
+  --nclasses NCLASSES   number of classes for dataset
+  --batch_size BATCH_SIZE
+                        batch size for training
+  --val_batch_size VAL_BATCH_SIZE
+                        batch size for evaluation
+  --energymodel ENERGYMODEL
+                        energy predictor model
+  --num_workers NUM_WORKERS
+                        number of workers for train
+  --lr LR               primal learning rate
+  --l2wd L2WD           l2 weight decay
+  --momentum MOMENTUM   primal momentum
+  --pretrain PRETRAIN   file to load pretrained model
+  --epochs EPOCHS       number of epochs to train
+  --lt_epochs LT_EPOCHS
+                        number of epochs to train
+  --seed SEED           random seed (default: 117)
+  --randinit            use random init
+  --eval                eval mode
+  --finetune            finetune mode
+  --optim OPTIM         optimizer
+  --log_interval LOG_INTERVAL
+                        how many batches to wait before logging training
+                        status
+  --test_interval TEST_INTERVAL
+                        how many epochs to wait before another test
+  --save_interval SAVE_INTERVAL
+                        how many epochs to wait before save a model
+  --logdir LOGDIR       folder to save to the log
+  --distill DISTILL     distill loss weight
+  --mgpu                enable using multiple gpus
+```

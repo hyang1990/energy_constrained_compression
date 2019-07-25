@@ -337,10 +337,6 @@ if __name__ == '__main__':
     misc.logger.init(args.logdir, 'train_log')
     print = misc.logger.info
 
-    # backup the src
-    os.system('zip -qj ' + os.path.join(args.logdir, 'src.zip') + ' {}/*.py'.format(
-        os.path.dirname(os.path.realpath(__file__))))
-
     print('command:\npython {}'.format(' '.join(sys.argv)))
     print("=================FLAGS==================")
     for k, v in args.__dict__.items():
