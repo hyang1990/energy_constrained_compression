@@ -25,7 +25,7 @@ To use the ImageNet dataset, download the dataset and move validation images to 
 To run the training with (TX2) energy constraint on MobileNet (with multiple GPUs),
 
 ```
-python admm_prox_train.py --net mobilenet-imagenet --dataset imagenet --datadir ./ILSVRC_CLS/ --batch_size 128 --num_workers 8 --plr 1e-5 --l2wd 1e-4 --pslr 3.0 --psgrad_clip 1.0 --budget 0.0077 --zinit 0.0 --rho_z 10.0 --rho_y 10.0 --distill 0.5 --val_batch_size 512 --energymodel ./energymodel_mbnet_tx2.pt --logdir log/default/ --padam --psgrad_mask --mgpu --save_interval 1
+python admm_prox_train.py --net mobilenet-imagenet --dataset imagenet --datadir ./ILSVRC_CLS/ --batch_size 128 --num_workers 8 --plr 1e-5 --l2wd 1e-4 --pslr 3.0 --psgrad_clip 1.0 --budget 0.0077 --zinit 0.0 --rho_z 10.0 --rho_y 10.0 --distill 0.5 --val_batch_size 512 --energymodel ./energymodel_mbnet_tx2.pt --logdir log/default/ --padam --psgrad_mask --mgpu --save_interval 1 --pretrain imagenet_pretrained_mbnet.pt
 
 ```
 
