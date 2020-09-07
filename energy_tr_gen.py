@@ -166,10 +166,9 @@ if __name__ == '__main__':
     item = np.zeros(2 + len(width_ub) + 2, dtype='float32')
 
     width = [0] * len(width_ub)
-    intervals = [max(round(w), 1) for w in width_ub]
     data_num = args.num
-    wlb = [interval + 1 for interval in intervals]
-    wub = [w+interval-1 for w, interval in zip(wlb, intervals)]
+    wlb = [1 for w in width_ub]
+    wub = [w for w in width_ub]
     print(wlb)
     print(wub)
     print('===========================')
